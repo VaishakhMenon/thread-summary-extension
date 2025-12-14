@@ -1,14 +1,16 @@
 {
   "name": "thread-summary-extension",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Intelligently summarize AI conversations",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@crxjs/vite-plugin": "^2.3.0",
@@ -20,6 +22,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.22",
     "postcss": "^8.5.6",
