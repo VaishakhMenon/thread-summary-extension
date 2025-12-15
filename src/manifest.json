@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Thread Summary",
   "version": "1.0.0",
-  "description": "Intelligently summarize AI conversations",
+  "description": "Extract and summarize AI conversation threads",
   "permissions": [
     "storage",
     "activeTab"
@@ -12,13 +12,14 @@
     "https://chat.openai.com/*",
     "https://gemini.google.com/*"
   ],
-  "action": {
-    "default_popup": "src/popup/index.html"
-  },
   "content_scripts": [
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["src/content/claude-scraper.jsx"]
+      "js": ["src/content/claude-scraper.jsx"],
+      "run_at": "document_idle"
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html"
+  }
 }

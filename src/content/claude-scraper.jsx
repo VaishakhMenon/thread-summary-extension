@@ -1,7 +1,6 @@
-// Content script that runs on claude.ai
-console.log('Thread Summary: Content script loaded on Claude.ai')
+// Content script for Claude.ai - Simple & Reliable Version
+console.log('Thread Summary: Scraper v2 loaded')
 
-// Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'extract') {
     const messages = extractConversation()
@@ -13,23 +12,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 function extractConversation() {
   const messages = []
   
-  // Find all message containers on Claude.ai
-  // This selector might need adjustment based on Claude's current DOM
-  const messageElements = document.querySelectorAll('[data-test-render-count]')
+  // Strategy: Find all divs with data-test-render-count
+  // These wrap individual message turns
+  const messageTurns = document.querySelectorAll('[data-test-render-count]')
   
-  messageElements.forEach((element, index) => {
-    const text = element.textContent || element.innerText
+  console.log(`Found ${messageTurns.length} potential message turns`)
+  
+  messageTurns.forEach((turn, index) => {
+    // Check for user message
+    const userContent = turn.querySelector('[data-testid="user-message"]')
+    if (userContent) {
+      const text = extractVisibleText(userContent)
+      if (text.trim().length > 0) {
+        messages.push({
+          role: 'user',
+          content: text.trim(),
+          timestamp: new Date().toISOString(),
+          index: index
+        })
+      }
+    }
     
-    // Determine role (simple heuristic for now)
-    const isUser = index % 2 === 0
-    
-    messages.push({
-      role: isUser ? 'user' : 'assistant',
-      content: text.trim(),
-      timestamp: new Date().toISOString()
-    })
+    // Check for assistant message
+    const assistantContent = turn.querySelector('.font-claude-response')
+    if (assistantContent) {
+      const text = extractVisibleText(assistantContent)
+      if (text.trim().length > 0) {
+        messages.push({
+          role: 'assistant',
+          content: text.trim(),
+          timestamp: new Date().toISOString(),
+          index: index
+        })
+      }
+    }
   })
   
-  console.log('Extracted messages:', messages)
+  console.log(`Successfully extracted ${messages.length} messages`)
   return messages
+}
+
+function extractVisibleText(element) {
+  // Get all text content, preserving line breaks
+  return element.innerText || element.textContent || ''
 }
