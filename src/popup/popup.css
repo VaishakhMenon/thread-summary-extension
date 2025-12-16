@@ -3,9 +3,11 @@
 @tailwind utilities;
 
 .popup-container {
-  width: 400px;
+  width: 500px;
+  max-height: 600px;
   padding: 20px;
   font-family: system-ui, -apple-system, sans-serif;
+  overflow-y: auto;
 }
 
 h1 {
@@ -15,10 +17,18 @@ h1 {
   color: #1a1a1a;
 }
 
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
 .status {
   margin-bottom: 16px;
   color: #666;
   font-size: 14px;
+  min-height: 20px;
 }
 
 .extract-btn {
@@ -34,8 +44,49 @@ h1 {
   transition: background 0.2s;
 }
 
-.extract-btn:hover {
+.extract-btn:hover:not(:disabled) {
   background: #4a4fd5;
+}
+
+.extract-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.summary-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid #e5e5e5;
+}
+
+.summary-content {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: #333;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.copy-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.copy-btn:hover {
+  background: #059669;
 }
 
 .preview {

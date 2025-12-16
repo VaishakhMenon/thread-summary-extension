@@ -1,21 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { crx } from '@crxjs/vite-plugin'
-import manifest from './src/manifest.json' with { type: 'json' }
+import manifest from './src/manifest.json'
 
 export default defineConfig({
-  plugins: [react(), crx({ manifest })],
-  base: './', // This makes paths relative!
-  build: {
-    rollupOptions: {
-      input: {
-        popup: 'src/popup/index.html'
-      }
-    }
-  },
-  server: {
-    port: 5173,
-    strictPort: true,
-    hmr: { port: 5173 }
-  }
+  plugins: [
+    react(),
+    crx({ manifest })
+  ],
+  base: './'
 })
