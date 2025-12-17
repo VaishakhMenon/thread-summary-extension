@@ -8,7 +8,12 @@
     "activeTab"
   ],
   "host_permissions": [
-    "https://claude.ai/*"
+    "https://claude.ai/*",
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://gemini.google.com/*",
+    "https://grok.com/*",
+    "https://x.ai/*"
   ],
   "background": {
     "service_worker": "src/background/background.js",
@@ -17,7 +22,23 @@
   "content_scripts": [
     {
       "matches": ["https://claude.ai/*"],
-      "js": ["src/content/claude-scraper.jsx"]
+      "js": ["src/content/claude-scraper.jsx"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "js": ["src/content/chatgpt-scraper.jsx"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["src/content/gemini-scraper.jsx"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://grok.com/*", "https://x.ai/*"],
+      "js": ["src/content/grok-scraper.jsx"],
+      "run_at": "document_idle"
     }
   ],
   "action": {
