@@ -1,110 +1,205 @@
-import React, { useState } from 'react'
-import { createRoot } from 'react-dom/client'
+import { useState, useEffect } from 'react'
 import './popup.css'
 
-function Popup() {
-  const [status, setStatus] = useState('Ready')
-  const [messageCount, setMessageCount] = useState(0)
-  const [messages, setMessages] = useState([])
+function App() {
+  const [extractedMessages, setExtractedMessages] = useState([])
   const [summary, setSummary] = useState('')
+  const [status, setStatus] = useState('Ready to extract and summarize')
   const [isLoading, setIsLoading] = useState(false)
+  const [platform, setPlatform] = useState('Unknown')
+  const [stats, setStats] = useState({ messageCount: 0, wordCount: 0 })
 
-  const handleExtract = async () => {
-    setStatus('Extracting conversation...')
+  // Detect current platform
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        const url = tabs[0].url
+        if (url.includes('claude.ai')) setPlatform('Claude')
+        else if (url.includes('chat.openai.com') || url.includes('chatgpt.com')) setPlatform('ChatGPT')
+        else if (url.includes('gemini.google.com')) setPlatform('Gemini')
+        else if (url.includes('grok.com') || url.includes('x.ai')) setPlatform('Grok')
+        else setPlatform('Unknown')
+      }
+    })
+  }, [])
+
+  const handleExtractAndSummarize = async () => {
     setIsLoading(true)
-    
+    setStatus('🔍 Extracting conversation...')
+    setSummary('')
+    setExtractedMessages([])
+
     try {
+      // Get active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+      if (!tab || !tab.id) {
+        setStatus('❌ Error: No active tab found')
+        setIsLoading(false)
+        return
+      }
+
+      // Check if we're on a supported platform
+      const url = tab.url || ''
+      const supportedPlatforms = [
+        'claude.ai',
+        'chat.openai.com',
+        'chatgpt.com',
+        'gemini.google.com',
+        'grok.com',
+        'x.ai'
+      ]
       
-      // Extract messages from content script
-      chrome.tabs.sendMessage(tab.id, { action: 'extract' }, async (response) => {
+      const isSupported = supportedPlatforms.some(platform => url.includes(platform))
+      
+      if (!isSupported) {
+        setStatus('❌ Please navigate to Claude, ChatGPT, Gemini, or Grok')
+        setIsLoading(false)
+        return
+      }
+
+      // Send message to content script to extract
+      chrome.tabs.sendMessage(tab.id, { action: 'extract' }, (response) => {
         if (chrome.runtime.lastError) {
-          setStatus('Error: ' + chrome.runtime.lastError.message)
+          console.error('Runtime error:', chrome.runtime.lastError)
+          setStatus('❌ Content script not loaded. Try refreshing the page.')
           setIsLoading(false)
           return
         }
-        
+
         if (response && response.messages && response.messages.length > 0) {
-          const extractedMessages = response.messages
-          setMessageCount(extractedMessages.length)
-          setMessages(extractedMessages)
-          setStatus(`✅ Found ${extractedMessages.length} messages! Generating summary...`)
+          setExtractedMessages(response.messages)
           
-          console.log('Extracted messages:', extractedMessages)
-          
-          // Send to background worker for summarization
+          // Calculate stats
+          const messageCount = response.messages.length
+          const wordCount = response.messages.reduce((total, msg) => {
+            return total + msg.content.split(/\s+/).length
+          }, 0)
+          setStats({ messageCount, wordCount })
+
+          setStatus(`✅ Extracted ${messageCount} messages (${wordCount.toLocaleString()} words). Summarizing...`)
+
+          // Send to background for summarization
           chrome.runtime.sendMessage(
-            { action: 'summarize', messages: extractedMessages },
-            (response) => {
+            { action: 'summarize', messages: response.messages },
+            (summaryResponse) => {
               if (chrome.runtime.lastError) {
                 setStatus('❌ Error: ' + chrome.runtime.lastError.message)
                 setIsLoading(false)
                 return
               }
-              
-              if (response && response.success) {
-                setSummary(response.summary)
-                setStatus(`✅ Summary generated from ${extractedMessages.length} messages!`)
+
+              if (summaryResponse && summaryResponse.success) {
+                setSummary(summaryResponse.summary)
+                setStatus(`✅ Summary generated! (${messageCount} messages analyzed)`)
               } else {
-                setStatus('❌ Failed to generate summary: ' + (response?.error || 'Unknown error'))
-                console.error('Summarization error:', response?.error)
+                setStatus('❌ Failed: ' + (summaryResponse?.error || 'Unknown error'))
               }
               setIsLoading(false)
             }
           )
         } else {
-          setStatus('❌ No conversation found')
+          setStatus('❌ No messages found. Make sure you\'re on a conversation page.')
           setIsLoading(false)
         }
       })
     } catch (error) {
-      setStatus('Error: ' + error.message)
+      console.error('Error:', error)
+      setStatus('❌ Error: ' + error.message)
       setIsLoading(false)
     }
   }
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(summary)
+    setStatus('📋 Copied to clipboard!')
+    setTimeout(() => setStatus(`✅ Summary generated! (${stats.messageCount} messages analyzed)`), 2000)
+  }
+
+  const handleDownload = () => {
+    const blob = new Blob([summary], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${platform}-conversation-summary-${Date.now()}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setStatus('💾 Downloaded summary!')
+    setTimeout(() => setStatus(`✅ Summary generated! (${stats.messageCount} messages analyzed)`), 2000)
+  }
+
   return (
     <div className="popup-container">
-      <h1>Thread Summary</h1>
-      <p className="status">{status}</p>
-      
-      <button 
-        onClick={handleExtract} 
-        className="extract-btn"
-        disabled={isLoading}
-      >
-        {isLoading ? 'Processing...' : 'Extract & Summarize'}
-      </button>
-      
-      {summary && (
-        <div className="summary-section">
-          <h2>Summary</h2>
-          <div className="summary-content">
-            {summary}
+      <div className="header">
+        <h1>Thread Summary</h1>
+        <div className="platform-badge">{platform}</div>
+      </div>
+
+      <div className="status-bar">
+        <span className={isLoading ? 'status loading' : 'status'}>{status}</span>
+      </div>
+
+      {stats.messageCount > 0 && (
+        <div className="stats-bar">
+          <div className="stat">
+            <span className="stat-label">Messages:</span>
+            <span className="stat-value">{stats.messageCount}</span>
           </div>
-          <button 
-            onClick={() => navigator.clipboard.writeText(summary)}
-            className="copy-btn"
-          >
-            📋 Copy Summary
-          </button>
+          <div className="stat">
+            <span className="stat-label">Words:</span>
+            <span className="stat-value">{stats.wordCount.toLocaleString()}</span>
+          </div>
         </div>
       )}
-      
-      {messageCount > 0 && !summary && !isLoading && (
-        <div className="preview">
+
+      <button
+        onClick={handleExtractAndSummarize}
+        disabled={isLoading || platform === 'Unknown'}
+        className="primary-button"
+      >
+        {isLoading ? '⏳ Processing...' : '✨ Extract & Summarize'}
+      </button>
+
+      {platform === 'Unknown' && (
+        <div className="warning">
+          ⚠️ Please open a conversation on Claude, ChatGPT, Gemini, or Grok
+        </div>
+      )}
+
+      {extractedMessages.length > 0 && (
+        <div className="preview-section">
           <h3>Preview (first 3 messages):</h3>
-          {messages.slice(0, 3).map((msg, i) => (
-            <div key={i} className="message-preview">
-              <strong>{msg.role}:</strong>
-              <p>{msg.content.substring(0, 100)}...</p>
+          {extractedMessages.slice(0, 3).map((msg, idx) => (
+            <div key={idx} className="message-preview">
+              <strong>{msg.role === 'user' ? 'User:' : 'Assistant:'}</strong>
+              <p>{msg.content.substring(0, 150)}...</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {summary && (
+        <div className="summary-section">
+          <div className="summary-header">
+            <h3>Summary</h3>
+            <div className="button-group">
+              <button onClick={handleCopy} className="action-button">
+                📋 Copy
+              </button>
+              <button onClick={handleDownload} className="action-button">
+                💾 Download
+              </button>
+            </div>
+          </div>
+          <div className="summary-content">
+            <pre>{summary}</pre>
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-const root = createRoot(document.getElementById('root'))
-root.render(<Popup />)
+export default App
