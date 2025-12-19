@@ -110,6 +110,38 @@ function App() {
     }
   }
 
+  const handleExportCSV = () => {
+    if (extractedMessages.length === 0) {
+      setStatus('❌ No messages to export. Extract first!')
+      return
+    }
+
+    // Create CSV content
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19)
+    let csvContent = 'Timestamp,Platform,Role,Message_Number,Word_Count,Content\n'
+    
+    extractedMessages.forEach((msg, index) => {
+      const wordCount = msg.content.split(/\s+/).length
+      // Escape content for CSV (handle quotes and newlines)
+      const escapedContent = '"' + msg.content.replace(/"/g, '""').replace(/\n/g, ' ') + '"'
+      csvContent += `${timestamp},${platform},${msg.role},${index + 1},${wordCount},${escapedContent}\n`
+    })
+
+    // Create and download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${platform}-conversation-${Date.now()}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    setStatus('📊 CSV exported successfully!')
+    setTimeout(() => setStatus(`✅ Extracted ${stats.messageCount} messages`), 2000)
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(summary)
     setStatus('📋 Copied to clipboard!')
@@ -177,6 +209,13 @@ function App() {
               <p>{msg.content.substring(0, 150)}...</p>
             </div>
           ))}
+          
+          {/* CSV Export button - shows after extraction */}
+          <div style={{ marginTop: '10px' }}>
+            <button onClick={handleExportCSV} className="action-button" style={{ width: '100%' }}>
+              📊 Export to CSV
+            </button>
+          </div>
         </div>
       )}
 
